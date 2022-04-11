@@ -33,9 +33,9 @@ theme_set(mytheme)
 ```
 
 Question 1: Is the air quality index for Ozone and PM2.5 significantly worse in the summer (June - August) compared to the rest of the year?
-Question 2: What area has the highest Ozone and PM2.5 levels?
+Question 2: What county has the highest average Ozone and PM2.5 levels?
 
-```{r wrangle}
+```{r wrangle 1}
 EPA_O3_2018$Date <- mdy(EPA_O3_2018$Date)
 EPA_O3_2019$Date <- mdy(EPA_O3_2019$Date)
 EPA_PM25_2018$Date <- mdy(EPA_PM25_2018$Date)
@@ -55,4 +55,30 @@ write.csv(EPA_PM25_2019_subset, row.names = FALSE, file = "./Data/Processed/EPAa
 write.csv(EPA_PM25_2018_subset, row.names = FALSE, file = "./Data/Processed/EPAair_PM25_2018_Processed.csv")
 ```
 
+```{r wrangle 2}
+# Find counties common across all four dataframes
+O3_Counties <- intersect(EPA_O3_2018_subset$COUNTY, EPA_O3_2019_subset$COUNTY)
+PM2.5_Counties <- intersect(EPA_PM25_2018_subset$COUNTY, EPA_PM25_2019_subset$COUNTY)
+Common_Counties <- intersect(O3_Counties, PM2.5_Counties)
 
+# Combine all dataframes
+EPA_data <- rbind(EPA_O3_2018_subset, EPA_O3_2019_subset, EPA_PM25_2018_subset, EPA_PM25_2019_subset)
+
+EPA_data_filtered <- EPA_data %>%
+  filter(COUNTY %in% c("Avery", "Buncombe", "Cumberland", "Durham", "Edgecombe", "Forsyth", "Guilford", "Haywood", "Johnston", "Mecklenburg", "Montgomery", "New Hanover", "Pitt", "Swain", "Wake")) %>%
+  mutate(month = month(Date)) %>%
+  mutate(year = year(Date)) %>%
+  group_by(month, AQS_PARAMETER_DESC, COUNTY) %>%
+  summarise(meanAQI = mean(DAILY_AQI_VALUE),
+            meanLAT = mean(SITE_LATITUDE),
+            meanLONG = mean(SITE_LONGITUDE)) %>%
+  pivot_wider(names_from = AQS_PARAMETER_DESC, values_from = meanAQI) %>%
+  drop_na()
+
+write.csv(EPA_data_filtered, row.names = FALSE, file = "./Data/Processed/EPAair_PM25_O3_filtered.csv")
+```
+
+```{r wrangle for Question 1}
+
+
+```
