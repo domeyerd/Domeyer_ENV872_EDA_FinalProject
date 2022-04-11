@@ -14,6 +14,13 @@ editor_options:
 library(tidyverse)
 library(lubridate)
 library(dplyr)
+library(viridis)
+library(cowplot)
+library(sf)
+library(leaflet)
+library(mapview)
+library(knitr)
+library(scales)
 
 setwd("~/Desktop/Duke/Data Analytics/Domeyer_ENV872_EDA_FinalProject")
 
@@ -32,8 +39,12 @@ mytheme <- theme_classic(base_size = 14) +
 theme_set(mytheme)
 ```
 
+# Research Questions
+
 Question 1: Is the air quality index for Ozone and PM2.5 significantly worse in the summer (June - August) compared to the rest of the year?
 Question 2: What county has the highest average Ozone and PM2.5 levels?
+
+# Data Wrangling
 
 ```{r wrangle 1}
 EPA_O3_2018$Date <- mdy(EPA_O3_2018$Date)
@@ -69,16 +80,82 @@ EPA_data_filtered <- EPA_data %>%
   mutate(month = month(Date)) %>%
   mutate(year = year(Date)) %>%
   group_by(month, AQS_PARAMETER_DESC, COUNTY) %>%
-  summarise(meanAQI = mean(DAILY_AQI_VALUE),
-            meanLAT = mean(SITE_LATITUDE),
-            meanLONG = mean(SITE_LONGITUDE)) %>%
-  pivot_wider(names_from = AQS_PARAMETER_DESC, values_from = meanAQI) %>%
-  drop_na()
+  summarise(meanAQI = mean(DAILY_AQI_VALUE)) %>%
+  pivot_wider(names_from = "AQS_PARAMETER_DESC", values_from = "meanAQI")
 
-write.csv(EPA_data_filtered, row.names = FALSE, file = "./Data/Processed/EPAair_PM25_O3_filtered.csv")
+#write.csv(EPA_data_filtered, row.names = FALSE, file = "./Data/Processed/EPAair_PM25_O3_filtered.csv")
+```
+# Data Information
+
+```{r information}
+colnames(EPA_data_filtered)[1] <- "Month"
+colnames(EPA_data_filtered)[2] <- "County"
+County_summary <- EPA_data_filtered %>%
+  group_by(County) %>%
+  summarise(Mean_Ozone = mean(Ozone, na.rm=T),
+            SD_Ozone = sd(Ozone, na.rm=T),
+            Mean_PM2.5 = mean(PM2.5, na.rm=T),
+            SD_PM2.5 = sd(PM2.5, na.rm=T))
+
+Month_summary <- EPA_data_filtered %>%
+  group_by(Month) %>%
+  summarise(Mean_Ozone = mean(Ozone, na.rm=T),
+            SD_Ozone = sd(Ozone, na.rm=T),
+            Mean_PM2.5 = mean(PM2.5, na.rm=T),
+            SD_PM2.5 = sd(PM2.5, na.rm=T))
+
+knitr::kable(County_summary, caption ="County summary of pollutants (ppm) in North Carolina, 2018 - 2019")
+knitr::kable(Month_summary, caption ="Monthly summary of pollutants (ppm) in North Carolina, 2018 - 2019")
+            
 ```
 
-```{r wrangle for Question 1}
+Detail                    | Description
+------------------------- | -----------------                   
+Data Source               | EPA Outdoor Air Quality Data
+Variables Used            | Month, Air Quality Index (AQS), County, Latitude, Longitude
+Date Range                | 2018 - 2019
+
+# Data Exploration
+
+```{r exploration}
+# Spatial extent of dataset
+counties_sf <- st_read("./Data/Raw/cb_2018_us_county_20m.shp") %>% 
+  filter(STATEFP == 37) %>%
+  filter(NAME %in% c("Avery", "Buncombe", "Cumberland", "Durham", "Edgecombe", "Forsyth", "Guilford", "Haywood", "Johnston", "Mecklenburg", "Montgomery", "New Hanover", "Pitt", "Swain", "Wake"))
+
+ggplot() +
+  geom_sf(data = counties_sf, color='white', aes(fill = NAME))
+
+# Graph representation of ozone and pm2.5
+ozone_plot <- ggplot(EPA_data_filtered, aes(x=Month, y=Ozone)) +
+  geom_line(aes(color=County)) +
+  scale_x_continuous(breaks=c(1,2,3,4,5,6,7,8,9,10,11,12)) + 
+  ylab("Mean Ozone (ppm)")
+
+print(ozone_plot)
+
+```
+
+# Analysis
+```{r analysis}
+
+
+```
+
+# Results
+
+```{r Geographic Visualization}
+county.sf <- EPA_data_filtered %>% 
+  st_as_sf(coords = c('meanLAT','meanLONG'),
+           crs=4326)
+
+county_plot <- ggplot() +
+  geom_sf(data = county.sf, color='white', aes(fill = Ozone)) +
+  labs(title = "NWIS Gage Locations in Nebraska", subtitle = "Devin Domeyer") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(plot.subtitle = element_text(hjust = 0.5))
+  
+print(gage.plot)
 
 
 ```
