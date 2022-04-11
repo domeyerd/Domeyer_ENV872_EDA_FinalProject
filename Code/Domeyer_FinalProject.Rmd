@@ -1,0 +1,54 @@
+---
+title: "FinalProject"
+author: "Devin Domeyer"
+date: "4/11/2022"
+output: pdf_document
+geometry: margin=2.54cm
+editor_options: 
+  chunk_output_type: console
+  markdown: 
+    wrap: 72
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(lubridate)
+
+setwd("~/Desktop/Duke/Data Analytics/Domeyer_ENV872_EDA_FinalProject")
+
+EPA_O3_2018 <- read.csv("./Data/Raw/EPAair_O3_NC2018_raw_copy.csv", stringsAsFactors = TRUE)
+EPA_O3_2019 <- read.csv("./Data/Raw/EPAair_O3_NC2019_raw_copy.csv", stringsAsFactors = TRUE)
+EPA_PM25_2018 <- read.csv("./Data/Raw/EPAair_PM25_NC2018_raw_copy.csv", stringsAsFactors = TRUE)
+EPA_PM25_2019 <- read.csv("./Data/Raw/EPAair_PM25_NC2019_raw_copy.csv", stringsAsFactors = TRUE)
+
+mytheme <- theme_classic(base_size = 14) +
+  theme(axis.text = element_text(color = "black"), 
+        legend.position = "right",
+        legend.title = element_text(size=10),
+        legend.text = element_text(size=8),
+        plot.title = element_text(hjust = 0.5))
+        
+theme_set(mytheme)
+```
+
+Question 1: Is the air quality index for Ozone and PM2.5 significantly worse in the summer (June - August) compared to the rest of the year?
+Question 2: What area has the highest Ozone and PM2.5 levels?
+
+```{r wrangle}
+EPA_O3_2018$Date <- mdy(EPA_O3_2018$Date)
+EPA_O3_2019$Date <- mdy(EPA_O3_2019$Date)
+EPA_PM25_2018$Date <- mdy(EPA_PM25_2018$Date)
+EPA_PM25_2019$Date <- mdy(EPA_PM25_2019$Date)
+
+
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
