@@ -13,6 +13,7 @@ editor_options:
 ```{r setup, include=FALSE}
 library(tidyverse)
 library(lubridate)
+library(dplyr)
 
 setwd("~/Desktop/Duke/Data Analytics/Domeyer_ENV872_EDA_FinalProject")
 
@@ -40,15 +41,18 @@ EPA_O3_2019$Date <- mdy(EPA_O3_2019$Date)
 EPA_PM25_2018$Date <- mdy(EPA_PM25_2018$Date)
 EPA_PM25_2019$Date <- mdy(EPA_PM25_2019$Date)
 
+EPA_O3_2018_subset <- select(EPA_O3_2018, Date, DAILY_AQI_VALUE, Site.Name, AQS_PARAMETER_DESC, SITE_LATITUDE, COUNTY:SITE_LONGITUDE)
+EPA_O3_2019_subset <- select(EPA_O3_2019, Date, DAILY_AQI_VALUE, Site.Name, AQS_PARAMETER_DESC, SITE_LATITUDE, COUNTY:SITE_LONGITUDE)
+EPA_PM25_2018_subset <- select(EPA_PM25_2018, Date, DAILY_AQI_VALUE, Site.Name, AQS_PARAMETER_DESC, SITE_LATITUDE, COUNTY, SITE_LONGITUDE)
+EPA_PM25_2019_subset <- select(EPA_PM25_2019, Date, DAILY_AQI_VALUE, Site.Name, AQS_PARAMETER_DESC, SITE_LATITUDE, COUNTY, SITE_LONGITUDE)
 
+EPA_PM25_2018_subset$AQS_PARAMETER_DESC <- "PM2.5"
+EPA_PM25_2019_subset$AQS_PARAMETER_DESC <- "PM2.5"
+
+write.csv(EPA_O3_2018_subset, row.names = FALSE, file = "./Data/Processed/EPAair_O3_2018_Processed.csv")
+write.csv(EPA_O3_2019_subset, row.names = FALSE, file = "./Data/Processed/EPAair_O3_2019_Processed.csv")
+write.csv(EPA_PM25_2019_subset, row.names = FALSE, file = "./Data/Processed/EPAair_PM25_2019_Processed.csv")
+write.csv(EPA_PM25_2018_subset, row.names = FALSE, file = "./Data/Processed/EPAair_PM25_2018_Processed.csv")
 ```
 
-## Including Plots
 
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
