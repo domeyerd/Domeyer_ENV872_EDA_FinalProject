@@ -21,6 +21,9 @@ library(leaflet)
 library(mapview)
 library(knitr)
 library(scales)
+library(lme4)
+library(lmerTest)
+library(agricolae)
 
 setwd("~/Desktop/Duke/Data Analytics/Domeyer_ENV872_EDA_FinalProject")
 
@@ -134,28 +137,65 @@ ozone_plot <- ggplot(EPA_data_filtered, aes(x=Month, y=Ozone)) +
 
 print(ozone_plot)
 
+pm25_plot <- ggplot(EPA_data_filtered, aes(x=Month, y=PM2.5)) +
+  geom_line(aes(color=County)) +
+  scale_x_continuous(breaks=c(1,2,3,4,5,6,7,8,9,10,11,12)) + 
+  ylab("Mean PM2.5 (ppm)")
+
+print(pm25_plot)
+
 ```
 
 # Analysis
-```{r analysis}
+```{r analysis question 1}
+lm1 <- lm(data=EPA_data_filtered, Ozone ~ County + Month)
+step(lm1)
 
+# Best fit includes Month as the only factor.
+lm2 <- lm(data=EPA_data_filtered, Ozone ~ Month)
+summary(lm2)
+month.groups <- HSD.test(lm2, "Month", group = TRUE)
+month.groups
+
+# Experiment by adding County as random effect. Test confirms it does not improve the model.
+lm2.1 <- lmer(data=EPA_data_filtered, Ozone ~ Month + (1|County))
+summary(lm2.1)
+step(lm2.1)
+
+lm3 <- lm(data=EPA_data_filtered, PM2.5 ~ County + Month)
+step(lm3)
+
+# Best fit includes County as the only factor. 
+lm4 <- lm(data=EPA_data_filtered, PM2.5 ~ County)
+summary(lm4)
+
+county.groups <- HSD.test(lm4, "County", group = TRUE)
+county.groups
 
 ```
 
 # Results
 
-```{r Geographic Visualization}
-county.sf <- EPA_data_filtered %>% 
-  st_as_sf(coords = c('meanLAT','meanLONG'),
-           crs=4326)
+```{r results}
+# Monthly plot
+colors <- c("Ozone" = "blue", "PM2.5" = "orange")
 
-county_plot <- ggplot() +
-  geom_sf(data = county.sf, color='white', aes(fill = Ozone)) +
-  labs(title = "NWIS Gage Locations in Nebraska", subtitle = "Devin Domeyer") +
-  theme(plot.title = element_text(hjust = 0.5)) +
-  theme(plot.subtitle = element_text(hjust = 0.5))
-  
-print(gage.plot)
+month_plot <- ggplot(Month_summary) +
+  geom_line(aes(x=Month, y=Mean_Ozone, color = "Ozone"), size=2) +
+  geom_line(aes(x=Month, y=Mean_PM2.5, color = "PM2.5"), size=2) +
+  scale_x_continuous(breaks=c(1,2,3,4,5,6,7,8,9,10,11,12)) + 
+  labs(x = "Month",
+       y = "Mean Pollutant Conc. (ppm)",
+       color = "Legend") +
+  scale_color_manual(values=colors)
 
+print(month_plot)
+
+# County Plot
+county_plot <- ggplot(EPA_data_filtered) +
+  geom_boxplot(aes(x=County, y=PM2.5)) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))
+
+print(county_plot)
 
 ```
