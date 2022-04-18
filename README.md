@@ -27,10 +27,9 @@ Data were accessed on 04-02-2022.
 ## Folder structure, file formats, and naming conventions 
 
 Folders contained in the repository:
-* Data: Contains subfolders of Raw, Processed, and Metadata for the project. Column names are self-explanatory. All files are csv.
-
-
-<describe your file naming conventions>
+* Data: Contains subfolders of Raw and Processed for the project. All files are csv.
+* Raw: Downloaded data in its original form.
+* Processed: Processed data from the analysis.
 
 ## Metadata
 
