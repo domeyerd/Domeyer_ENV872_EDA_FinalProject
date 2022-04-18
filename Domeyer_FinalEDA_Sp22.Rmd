@@ -1,0 +1,280 @@
+---
+output: 
+  pdf_document:
+    keep_tex: yes
+    fig_caption: yes
+    number_sections: yes
+geometry: margin=2.54cm
+title: "Air Quality Analysis of Fifteen Counties in North Carolina (2018-2019)"
+subtitle: "https://github.com/domeyerd/Domeyer_ENV872_EDA_FinalProject"
+author: "Devin Domeyer"
+fontsize: 12pt
+mainfont: Times New Roman
+
+
+---
+
+\newpage
+\tableofcontents 
+\newpage
+\listoftables 
+\newpage
+\listoffigures 
+\newpage
+
+```{r setup, include=FALSE}
+# Set your working directory
+setwd("~/Desktop/Duke/Data Analytics/Domeyer_ENV872_EDA_FinalProject")
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+
+# Load your packages
+library(tidyverse)
+library(lubridate)
+library(dplyr)
+library(viridis)
+library(cowplot)
+library(sf)
+library(leaflet)
+library(mapview)
+library(knitr)
+library(scales)
+library(lme4)
+library(lmerTest)
+library(agricolae)
+
+# Set your ggplot theme
+mytheme <- theme_classic(base_size = 14) +
+  theme(axis.text = element_text(color = "black"), 
+        legend.position = "right",
+        legend.title = element_text(size=10),
+        legend.text = element_text(size=8),
+        plot.title = element_text(hjust = 0.5))
+        
+theme_set(mytheme)
+
+# Load your datasets
+EPA_O3_2018 <- read.csv("./Data/Raw/EPAair_O3_NC2018_raw_copy.csv", stringsAsFactors = TRUE)
+EPA_O3_2019 <- read.csv("./Data/Raw/EPAair_O3_NC2019_raw_copy.csv", stringsAsFactors = TRUE)
+EPA_PM25_2018 <- read.csv("./Data/Raw/EPAair_PM25_NC2018_raw_copy.csv", stringsAsFactors = TRUE)
+EPA_PM25_2019 <- read.csv("./Data/Raw/EPAair_PM25_NC2019_raw_copy.csv", stringsAsFactors = TRUE)
+```
+```{r wrangle, include=FALSE}
+EPA_O3_2018$Date <- mdy(EPA_O3_2018$Date)
+EPA_O3_2019$Date <- mdy(EPA_O3_2019$Date)
+EPA_PM25_2018$Date <- mdy(EPA_PM25_2018$Date)
+EPA_PM25_2019$Date <- mdy(EPA_PM25_2019$Date)
+
+EPA_O3_2018_subset <- select(EPA_O3_2018, Date, DAILY_AQI_VALUE, Site.Name, AQS_PARAMETER_DESC, SITE_LATITUDE, COUNTY:SITE_LONGITUDE)
+EPA_O3_2019_subset <- select(EPA_O3_2019, Date, DAILY_AQI_VALUE, Site.Name, AQS_PARAMETER_DESC, SITE_LATITUDE, COUNTY:SITE_LONGITUDE)
+EPA_PM25_2018_subset <- select(EPA_PM25_2018, Date, DAILY_AQI_VALUE, Site.Name, AQS_PARAMETER_DESC, SITE_LATITUDE, COUNTY, SITE_LONGITUDE)
+EPA_PM25_2019_subset <- select(EPA_PM25_2019, Date, DAILY_AQI_VALUE, Site.Name, AQS_PARAMETER_DESC, SITE_LATITUDE, COUNTY, SITE_LONGITUDE)
+
+EPA_PM25_2018_subset$AQS_PARAMETER_DESC <- "PM2.5"
+EPA_PM25_2019_subset$AQS_PARAMETER_DESC <- "PM2.5"
+
+# Find counties common across all four dataframes
+O3_Counties <- intersect(EPA_O3_2018_subset$COUNTY, EPA_O3_2019_subset$COUNTY)
+PM2.5_Counties <- intersect(EPA_PM25_2018_subset$COUNTY, EPA_PM25_2019_subset$COUNTY)
+Common_Counties <- intersect(O3_Counties, PM2.5_Counties)
+
+# Combine all dataframes
+EPA_data <- rbind(EPA_O3_2018_subset, EPA_O3_2019_subset, EPA_PM25_2018_subset, EPA_PM25_2019_subset)
+
+EPA_data_filtered <- EPA_data %>%
+  filter(COUNTY %in% c("Avery", "Buncombe", "Cumberland", "Durham", "Edgecombe", "Forsyth", "Guilford", "Haywood", "Johnston", "Mecklenburg", "Montgomery", "New Hanover", "Pitt", "Swain", "Wake")) %>%
+  mutate(month = month(Date)) %>%
+  mutate(year = year(Date)) %>%
+  group_by(month, AQS_PARAMETER_DESC, COUNTY) %>%
+  summarise(meanAQI = mean(DAILY_AQI_VALUE)) %>%
+  pivot_wider(names_from = "AQS_PARAMETER_DESC", values_from = "meanAQI")
+```
+
+
+# Rationale and Research Questions
+
+Communities in North Carolina are expanding. According to the latest population estimate from the U.S. Census Bureau, 112,000 people settled in the state in one year. As more people choose to make North Carolina their home, understanding trends in air quality could greatly impact what county is best for those with, for example, children or health problems. Additionally, trends in the time of year these air pollutants are most concentrated is useful for determining factors like when or when not to be in the state if opportunity allows. 
+
+Ozone is a potent pollutant. According to the U.S. Environmental Protection Agency (EPA), children are at the greatest risk of exposure to ozone given its affect on lungs and aggravation of asthma attacks. Older adults and those with respiratory illnesses are also at risk of more severe side effects from ozone pollution, including lung inflamation and aggravated lung diseases like emphysema and chronic bronchitis.
+
+The EPA warns that fine particulate matter pollution is another risk for children, older adults and those with lung diseases as it can cause aggravated asthma, heart attacks, decreased lung function, and general difficulty breathing.
+
+Daily monitoring data for seven different air pollutants are made publicly available by the EPA in their Outdoor Air Quality Data portal. For this study, ozone and PM2.5 (fine particulate matter) are analyzed across all months of the years 2018 and 2019 in fifteen counties in North Carolina to compare trends. 
+
+Research questions include:
+
+  1. Is the air quality index for Ozone and PM2.5 significantly worse in the summer (June - August) compared to the rest of the year?
+  
+  2. What county has the highest average Ozone and PM2.5 levels?
+
+\newpage
+
+# Dataset Information
+## Data Retrieval
+
+Data was collected from the EPA's "Outdoor Air Quality "Air Data" program, which posts daily air quality data for public access. The data for this project was pulled from outdoor monitors across the state of North Carolina and retrieved using the "download daily data" query with settings for pollutant type, year, and geography. All monitor sites with data that met these parameters were downloaded. Four different CSVs, ozone and PM2.5 for 2018 and 2019, were added to the project repository for further analysis and can be retrieved from the GitHub repository.
+
+
+|                                  Table 1: Information about the data source.
+
+
+Detail           | Description
+---------------- | -----------------                   
+Data Source      | EPA Outdoor Air Quality Data
+Variables Used   | Month, Air Quality Index (AQS), County, Latitude, Longitude
+Date Range       | 2018 - 2019
+
+## Data Wrangling
+
+Not all variables in the downloaded datasets were necessary for analysis. The data wrangling began by subsetting the date, daily air quality index, pollutant type, site name, and location for each pollutant in each year. Using the "intersect" function, counties included in all four dataframes were identified (Figure 1), and this subset was combined into a single dataframe. A date columns specifying month and year was added. Then, using the split-apply-combine approach, the average air quality parameter was identified for each pollutant, for each month, and in each county. Average month and county values for ozone and PM2.5 are shown in Tables 2 and 3.
+```{r exploration, include=FALSE}
+# Spatial extent of dataset
+counties_sf <- st_read("~/Desktop/Duke/Data Analytics/Domeyer_ENV872_EDA_FinalProject/Data/Raw/cb_2018_us_county_20m.shp") %>% 
+  filter(STATEFP == 37)
+
+select_sf <- counties_sf %>% 
+  filter(STATEFP == 37) %>%
+  filter(NAME %in% c("Avery", "Buncombe", "Cumberland", "Durham", "Edgecombe", "Forsyth", "Guilford", "Haywood", "Johnston", "Mecklenburg", "Montgomery", "New Hanover", "Pitt", "Swain", "Wake"))
+```
+
+```{r geography, echo=FALSE, fig.cap="Fifteen counties in North Carolina analyzed for this study"}
+
+ggplot() +
+  geom_sf(data = counties_sf, color = 'grey') +
+  geom_sf(data = select_sf, aes(fill = NAME)) +
+  theme(axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
+        axis.text.y=element_blank(), 
+        axis.ticks.y=element_blank(),
+        axis.line=element_blank()) +
+  labs(fill="County")
+```
+
+```{r information, echo=FALSE}
+colnames(EPA_data_filtered)[1] <- "Month"
+colnames(EPA_data_filtered)[2] <- "County"
+County_summary <- EPA_data_filtered %>%
+  group_by(County) %>%
+  summarise(Mean_Ozone = mean(Ozone, na.rm=T),
+            SD_Ozone = sd(Ozone, na.rm=T),
+            Mean_PM2.5 = mean(PM2.5, na.rm=T),
+            SD_PM2.5 = sd(PM2.5, na.rm=T))
+
+Month_summary <- EPA_data_filtered %>%
+  group_by(Month) %>%
+  summarise(Mean_Ozone = mean(Ozone, na.rm=T),
+            SD_Ozone = sd(Ozone, na.rm=T),
+            Mean_PM2.5 = mean(PM2.5, na.rm=T),
+            SD_PM2.5 = sd(PM2.5, na.rm=T))
+
+knitr::kable(County_summary, caption ="County summary of pollutants (ppm) in North Carolina, 2018 - 2019")
+
+knitr::kable(Month_summary, caption ="Monthly summary of pollutants (ppm) in North Carolina, 2018 - 2019")
+            
+```
+
+
+\newpage
+
+# Exploratory Analysis 
+
+It should be noted that there were some months in some counties that did not have air quality indices for ozone or PM2.5 respectively. Air quality readings can fluctuate quite drastically from month to month so interpolated values were not added. Missing data was also concentrated in the winter months which still enabled trend analysis for research question one. Once the data was in a conducive format for analysis, it was important to examine some initial visual trends. Average ozone levels for each county are displayed in Figure 2, and average PM2.5 levels for each county are displayed in Figure 3 -- each for every month of the year. From this initial visualization, patterns of potential significance can be gleaned.
+
+
+```{r exploration2, echo=FALSE, fig.cap="Average ozone levels for each county across 2018 and 2019."}
+  
+# Graph representation of ozone 
+ozone_plot <- ggplot(EPA_data_filtered, aes(x=Month, y=Ozone)) +
+  geom_line(aes(color=County)) +
+  scale_x_continuous(breaks=c(1,2,3,4,5,6,7,8,9,10,11,12)) + 
+  ylab("Mean Ozone (ppm)")
+
+print(ozone_plot)
+```
+
+```{r exploration3, echo=FALSE, fig.cap="Average fine particulate matter (PM2.5) levels for each county across 2018 and 2019."}
+# Graph representation of pm2.5
+pm25_plot <- ggplot(EPA_data_filtered, aes(x=Month, y=PM2.5)) +
+  geom_line(aes(color=County)) +
+  scale_x_continuous(breaks=c(1,2,3,4,5,6,7,8,9,10,11,12)) + 
+  ylab("Mean PM2.5 (ppm)")
+
+print(pm25_plot)
+
+```
+
+
+
+\newpage
+
+# Analysis
+```{r analysis, include=FALSE}
+lm1 <- lm(data=EPA_data_filtered, Ozone ~ County + Month)
+step(lm1)
+
+# Best fit includes Month as the only factor.
+lm2 <- lm(data=EPA_data_filtered, Ozone ~ Month)
+summary(lm2)
+month.groups <- HSD.test(lm2, "Month", group = TRUE)
+month.groups
+
+# Experiment by adding County as random effect. Test confirms it does not improve the model.
+lm2.1 <- lmer(data=EPA_data_filtered, Ozone ~ Month + (1|County))
+summary(lm2.1)
+step(lm2.1)
+
+lm3 <- lm(data=EPA_data_filtered, PM2.5 ~ County + Month)
+step(lm3)
+
+# Best fit includes County as the only factor. 
+lm4 <- lm(data=EPA_data_filtered, PM2.5 ~ County)
+summary(lm4)
+
+county.groups <- HSD.test(lm4, "County", group = TRUE)
+county.groups
+
+```
+
+## Question 1: Is the air quality index for Ozone and PM2.5 significantly worse in the summer (June - August) compared to the rest of the year?
+
+To answer the first research question, a linear model was run with ozone as the dependent variable and county and month as the independent variables. A stepwise AIC analysis was conducted to determine the model that explained the most variance in the data, and the result was including only month as a factor to explain variation in ozone levels fit the data best. A post-hoc Tukey HSD test revealed differences between individual months. Ozone was significantly different across months, with March-June significantly higher than October-February. (ANOVA, df = 150, F = 15.19, p < 0.001) In contrast, month had an almost non-existent effect on PM2.5 (p=0.99) and a stepwise AIC confirmed that including only county to explain variation in the dependent variable resulted in the best fitting model. Figure 4 shows the contrast between monthly significance across both pollutants. It should be noted that although month was the best fitting variable tested in this study, it still only explained 8.6% of the trend in the data.
+
+```{r results month, echo=FALSE, fig.cap = "Average monthly ozone and fine partciulate matter (PM2.5) levels, aggregated across all fifteen counties in 2018 and 2019."}
+# Monthly plot
+colors <- c("Ozone" = "blue", "PM2.5" = "orange")
+
+month_plot <- ggplot(Month_summary) +
+  geom_line(aes(x=Month, y=Mean_Ozone, color = "Ozone"), size=2) +
+  geom_line(aes(x=Month, y=Mean_PM2.5, color = "PM2.5"), size=2) +
+  scale_x_continuous(breaks=c(1,2,3,4,5,6,7,8,9,10,11,12)) + 
+  labs(x = "Month",
+       y = "Mean Pollutant Conc. (ppm)",
+       color = "Legend") +
+  scale_color_manual(values=colors)
+
+print(month_plot)
+```
+
+## Question 2: What county has the highest average Ozone and PM2.5 levels?
+
+Given there was no significant difference in ozone levels across the fifteen counties examined in this study, research question two goes, in part, unanswered. However, PM2.5 was different across counties, with Avery, New Hanover, and Haywood at significantly lower air quality index levels than other counties. (ANOVA, df = 165, F= 25.86, p < 0.0001) This model fit significantly better than those run for research question one, with change in county explaining 67% of variation in PM2.5 levels.
+
+```{r results county, echo=FALSE, fig.cap ="Average yearly fine particulate matter (PM2.5) levels across fifteen counties in 2018 and 2019."}
+# County Plot
+county_plot <- ggplot(EPA_data_filtered) +
+  geom_boxplot(aes(x=reorder(County,PM2.5,na.rm=TRUE), y=PM2.5)) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1)) +
+  xlab("County")
+
+print(county_plot)
+
+```
+
+\newpage
+
+# Summary and Conclusions
+
+From this analysis, the increasing numbers of people moving to areas of North Carolina should have more information on which counties would be the safest for children, elderly or those with health concerns. That said, this analysis only covers fifteen of the many counties in North Carolina so further study would ne needed to make a final conclusion about which county in North Carolina had the lowest levels of ozone or fine particulate matter. Additionally, this study covered only data from the years 2018 and 2019, which is now three years out of sync with current air quality trends that can fluctuate dramatically, especially in the era of extreme climate change. 
+
+For those looking to visit North Carolina or potentially make it their second home, the summer months could be ones to avoid if there are those traveling with health concerns, children or elderly. Although fine particulate matter did not vary significantly between months of the year, ozone levels were highest during the Spring months, tapering out toward the end of summer. Ozone is still an aggravator of respiratory problems including asthma so the insignificance of fine particulates should not assuage seasonal health concerns.
+
+

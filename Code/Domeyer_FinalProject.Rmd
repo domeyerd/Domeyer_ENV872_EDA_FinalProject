@@ -86,7 +86,7 @@ EPA_data_filtered <- EPA_data %>%
   summarise(meanAQI = mean(DAILY_AQI_VALUE)) %>%
   pivot_wider(names_from = "AQS_PARAMETER_DESC", values_from = "meanAQI")
 
-#write.csv(EPA_data_filtered, row.names = FALSE, file = "./Data/Processed/EPAair_PM25_O3_filtered.csv")
+write.csv(EPA_data_filtered, row.names = FALSE, file = "./Data/Processed/EPAair_PM25_O3_filtered.csv")
 ```
 # Data Information
 
@@ -123,12 +123,22 @@ Date Range                | 2018 - 2019
 ```{r exploration}
 # Spatial extent of dataset
 counties_sf <- st_read("./Data/Raw/cb_2018_us_county_20m.shp") %>% 
+  filter(STATEFP == 37)
+
+select_sf <- counties_sf %>% 
   filter(STATEFP == 37) %>%
   filter(NAME %in% c("Avery", "Buncombe", "Cumberland", "Durham", "Edgecombe", "Forsyth", "Guilford", "Haywood", "Johnston", "Mecklenburg", "Montgomery", "New Hanover", "Pitt", "Swain", "Wake"))
 
 ggplot() +
-  geom_sf(data = counties_sf, color='white', aes(fill = NAME))
-
+  geom_sf(data = counties_sf, color = 'grey') +
+  geom_sf(data = select_sf, aes(fill = NAME)) +
+  theme(axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
+        axis.text.y=element_blank(), 
+        axis.ticks.y=element_blank(),
+        axis.line=element_blank()) +
+  labs(fill="County")
+  
 # Graph representation of ozone and pm2.5
 ozone_plot <- ggplot(EPA_data_filtered, aes(x=Month, y=Ozone)) +
   geom_line(aes(color=County)) +
@@ -193,7 +203,7 @@ print(month_plot)
 
 # County Plot
 county_plot <- ggplot(EPA_data_filtered) +
-  geom_boxplot(aes(x=County, y=PM2.5)) +
+  geom_boxplot(aes(x=reorder(County,PM2.5,na.rm=TRUE), y=PM2.5)) +
   theme(axis.text.x = element_text(angle = 60, hjust = 1))
 
 print(county_plot)
