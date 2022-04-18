@@ -35,6 +35,7 @@ Folders contained in the repository:
 
 Information gathered from: https://www.epa.gov/outdoor-air-quality-data/air-data-basic-information and https://aqs.epa.gov/aqsweb/documents/AQS_Format.html
 
+General Information
 * Date: month/day/year
 * Source: AQS (Air Quality System) or AirNow
 * Site ID: A unique number within the county identifying the site.
@@ -51,6 +52,7 @@ Daily_AQI_VALUE: Air quality index (range 0-500). Levels:
 * 201-300: Very unhealthy (purple)
 * 301-500: Hazardous (maroon)
 
+Column Names
 * Site Name
 * DAILY_OBS_COUNT: number of observations per day
 * PERCENT_COMPLETE
